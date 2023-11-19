@@ -1,7 +1,6 @@
 ################ FED makefile for GNU make ################
 
 .PHONY: all default clean zip badtarget
-.PRECIOUS: %.o %.obj
 
 ################ what version to build? ################
 
@@ -14,7 +13,11 @@ else
 ifdef DJGPP
 TARGET = djgpp
 else
+ifdef WATCOM
+TARGET = watcom
+else
 TARGET = curses
+endif
 endif
 endif
 endif
@@ -41,8 +44,13 @@ ifeq ($(TARGET),alleg)
 fed$(EXE): CFLAGS += -DTARGET_ALLEG
 fed$(EXE): LDFLAGS += -lalleg
 else
+ifeq ($(TARGET),watcom)
+fed$(EXE): CFLAGS += -dTARGET_WATCOM
+fed$(EXE): LDFLAGS +=
+else
 badtarget:
 	@echo Unknown compile target $(TARGET)! (expecting djgpp, curses, msvc, or alleg)
+endif
 endif
 endif
 endif
@@ -65,6 +73,16 @@ LDFLAGS += -Zi
 endif
 
 else
+ifeq ($(TARGET),watcom)
+
+CC = wcl386
+EXEO = -fe=
+OBJO = -fo=
+
+CFLAGS = -bcl=pmodew -dTARGET_WATCOM
+LDFLAGS = -bcl=pmodew
+
+else
 
 CC = gcc
 EXEO = -o # trailing space
@@ -80,15 +98,25 @@ endif
 
 endif
 
+endif
+
 ################ choose file extensions ################
 
 ifeq ($(TARGET),win)
+MXE = .exe
 EXE = .exe
 else
 ifdef DJGPP
+MXE = .exe
 EXE = .exe
 else
+ifeq ($(TARGET),watcom)
+MXE =
+EXE = .exe
+else
+MXE =
 EXE =
+endif
 endif
 endif
 
@@ -120,15 +148,20 @@ OBJS := $(SRCS:.c=.$(OBJ))
 
 ################ the actual build rules ################
 
-default: fed$(EXE)
+default: wccfed$(EXE)
 
-fed$(EXE) : $(OBJS)
+wccfed$(EXE) : $(OBJS)
+	$(CC) $(LDFLAGS) $(OBJS) $(EXEO)$@
 
-help.c: help.txt makehelp$(EXE)
-	./makehelp$(EXE) help.txt help.c
+help.c: help.txt makehelp$(MXE)
+	./makehelp$(MXE) help.txt help.c
 
-makehelp$(EXE): makehelp.c
-	$(CC) $(CFLAGS) -g $(LDFLAGS) $(EXEO)makehelp$(EXE) makehelp.c
+makehelp$(MXE): makehelp.c
+ifeq ($(TARGET),watcom)
+	gcc -Wall -O3 -fomit-frame-pointer -g -o makehelp makehelp.c
+else
+	$(CC) $(CFLAGS) -g $(LDFLAGS) $(EXEO)makehelp$(MXE) makehelp.c
+endif
 
 %.$(OBJ) : %.c fed.h io.h io$(TARGET).h
 	$(CC) $(CFLAGS) -c $< $(OBJO)$@
@@ -136,7 +169,7 @@ makehelp$(EXE): makehelp.c
 fed.res: fed.rc fed.ico wnd.ico
 	rc -fofed.res fed.rc
 
-clean : ; $(RM) $(OBJS) *.res *.pdb *.ilk help.c makehelp$(EXE)
+clean : ; $(RM) $(OBJS) *.res *.pdb *.ilk help.c makehelp$(MXE)
 
 ################ build distribution zips ################
 

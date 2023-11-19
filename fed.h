@@ -273,7 +273,7 @@ typedef struct UNDO
    int cached_count;            /* how many of this operation? */
    int length;                  /* length of the undo data */
    int size;                    /* amount of memory allocated */
-   unsigned char data[0];       /* the undo data */
+   unsigned char data[];        /* the undo data */
 } UNDO;
 
 

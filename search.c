@@ -949,7 +949,7 @@ void browse(char *s)
    destroy_undolist(buf->redo);
 
    strcpy(buf->name, "browse");
- #ifdef DJGPP
+ #if (defined DJGPP) || (defined TARGET_WATCOM)
    buf->flags = BUF_BROWSE;
  #else
    buf->flags = BUF_BROWSE | BUF_UNIX;
