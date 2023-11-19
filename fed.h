@@ -18,11 +18,11 @@
 
 #include "io.h"
 
-#define VS              "FED 2.23"
-#define VS2             "Version 2.23"
-#define VS3             "2.23"
-#define DS              "November 2006"
-#define DS2             "1994/2006"
+#define VS              "FED 2.24"
+#define VS2             "Version 2.24"
+#define VS3             "2.24"
+#define DS              "February 2007"
+#define DS2             "1994/2007"
 
 #define CFG_FILE        "fed.cfg"
 #define SYN_FILE        "fed.syn"
