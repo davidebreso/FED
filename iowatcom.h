@@ -22,8 +22,6 @@
 #define TN     "watcom"
 
 
-#include <conio.h>
-#include <graph.h>
 #include <stdio.h>
 #include <bios.h>
 #include <io.h>
@@ -34,7 +32,7 @@
 #define _USE_LFN        0
 
 
-#define SCRN_ADDR(x,y)  (0xb8000+((x)*2)+((y)*160))
+#define SCRN_ADDR(x,y)  (video_base+((x)*2)+((y)*160))
 
 
 #define TL_CHAR         0xDA
@@ -63,7 +61,7 @@ extern int screen_h;
 extern int x_pos, y_pos;
 extern int attrib;
 extern int norm_attrib;
-extern int dos_seg;
+extern int video_base;
 
 #define gch()           _bios_keybrd(_KEYBRD_READ)                               /* 'raw' character input */
 #define ascii(c)        ((c) & 0x00ff)                                           /* convert raw to ascii */
@@ -73,15 +71,15 @@ extern int dos_seg;
 #define alt_pressed()   ((modifiers() & 8) && !(*(char *)(1174) & 8))            /* is the alt key pressed? */
 #define print(c)        _bios_printer(0,0,c)                                     /* print a character */
 #define printer_ready() (TRUE)                                                   /* is there a printer? */
-#define cls()           { _clearscreen(_GCLEARSCREEN); x_pos = y_pos = 0; }
+void cls();
 #define home()          goto1(0,0)
 #define newline()       { cr(); linefeed(); }
 #define goto1(x,y)      { x_pos = x; y_pos = y; }
-#define goto2(x,y)      _settextposition(((y_pos = y) + 1), ((x_pos = x) + 1))
+void goto2(int x, int y);
 #define backspace()     { if (x_pos > 0) { x_pos--; pch(' '); x_pos--; } }
 #define linefeed()      { if (y_pos < screen_h-1) y_pos++; }
 #define cr()            x_pos=0;
-#define tattr(col)      { attrib = col; _settextcolor(attrib & 0x0F); _setbkcolor(attrib >> 4); }
+#define tattr(col)      { attrib = col; }
 #define sel_vid()       attrib = config.sel_col
 #define fold_vid()      attrib = config.fold_col
 #define hi_vid()        attrib = config.hi_col
@@ -102,7 +100,7 @@ extern int dos_seg;
 
 #define refresh_screen()
 
-#define term_suspend(newline)    _settextcursor(_NORMALCURSOR)
+#define term_suspend(newline)    my_setcursor(_NORMALCURSOR)
 
 
 /* file IO functions */

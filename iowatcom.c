@@ -23,16 +23,17 @@
 
 #include "fed.h"
 
-#define  textattr(attr)     {  _settextcolor(attr & 0x0F); _setbkcolor(attr >> 4); }
 
 int screen_w = 80;
-int screen_h = 25;              /* screen dimensions */
+int screen_h = 25;               /* screen dimensions */
 
 int x_pos = 0, y_pos = 0;
 int attrib = 7;
-int norm_attrib = 7;
+int norm_attrib = 7;             /* light gray on black */
 int saved_lines = 0;
-short saved_vmode = _DEFAULTMODE;
+short saved_vmode = 0;
+short fed_vmode = 0;
+int video_base = 0xb8000;
 
 int mouse_state;
 int m_x = -1;
@@ -236,30 +237,69 @@ void set_bright_backgrounds()
 
 
 
-void term_init(int screenheight)
+void set_video_mode(short mode)
 {
-   struct videoconfig dat;
+   union REGS reg;
+   
+   reg.h.ah = 0;
+   reg.h.al = mode;
+   int386(0x10, &reg, &reg);
+}
 
-   if (saved_lines <= 0) {
-      _getvideoconfig(&dat);
-      screen_h = saved_lines = dat.numtextrows;
-      screen_w = dat.numtextcols;
-      saved_vmode = dat.mode;
-      norm_attrib = (_getbkcolor() << 4) | (_gettextcolor());
+
+
+void goto2(int x, int y)
+{
+   union REGS reg;
+   
+   reg.w.ax = 0x0200;
+   reg.w.bx = 0;
+   reg.h.dh = y;
+   reg.h.dl = x;
+   int386(0x10, &reg, &reg);
+}
+
+
+
+void cls()
+{
+   int i;
+   int16_t *p = (int16_t *)(video_base);
+   /* Fill the entire screen with spaces */
+   for (i = 0; i < screen_h * screen_w; i++) {
+      *p++ = (attrib << 8) | ' ';
    }
 
-   if (screen_h != screenheight) {
-      if(_settextrows(screenheight) != screenheight)
-        _setvideomode(saved_vmode);
-      _getvideoconfig(&dat);
-      screen_h = dat.numtextrows;
-      screen_w = dat.numtextcols;
+   goto2(0, 0);
+   x_pos = y_pos = 0;
+}
+
+
+
+void term_init(int screenheight)
+{
+   union REGS reg;
+   
+   if (saved_lines <= 0) {
+      /* Read the video mode from the BIOS area */
+      saved_vmode = *(short *)( 0x449 );
+   
+      if (saved_vmode == 7) {
+         /* Monochrome video card */
+         video_base = 0xb0000;
+         fed_vmode = 7;
+      } else {
+         /* Color video card */
+         video_base = 0xb8000;
+         fed_vmode = 3;
+      }
+      set_video_mode(fed_vmode);
+      saved_lines = screen_h;
    }
 
    set_bright_backgrounds();
 
    n_vid();
-   textattr(attrib);
    cls();
 
    mouse_init();
@@ -271,18 +311,18 @@ void term_init(int screenheight)
 
 void term_exit()                     /* close down the screen */
 {
-   textattr(norm_attrib);
+   attrib = norm_attrib;
 
-   if (saved_lines != screen_h) {
-      _setvideomode(saved_vmode);
+   if (saved_vmode != fed_vmode) {
+      set_video_mode(saved_vmode);
       cls();
    }
    else {
       goto2(0,screen_h-1);
-      putch('\n');
+      cr_scroll();
    }
 
-   _settextcursor(_NORMALCURSOR);
+   my_setcursor(_NORMALCURSOR);
    show_c();
 }
 
@@ -290,17 +330,13 @@ void term_exit()                     /* close down the screen */
 
 void term_reinit(int wait)             /* fixup after running other progs */
 {
-   struct videoconfig dat;
-
+   /* Read the video mode from the BIOS area */
+   short vmode = *(short *)( 0x449 );
+   
    /*  gppconio_init();     Watcom conio and graph do not have init/reset functions */
-   _getvideoconfig(&dat);
 
-   if (dat.numtextrows != screen_h) {
-      if(_settextrows(screen_h) != screen_h)
-        _setvideomode(saved_vmode);
-      _getvideoconfig(&dat);
-      screen_h = dat.numtextrows;
-      screen_w = dat.numtextcols;
+   if (vmode != fed_vmode) {
+      set_video_mode(fed_vmode);
       mouse_init();
    }
 
@@ -382,8 +418,14 @@ void del_to_eol()
 
 void cr_scroll()
 {
-   putchar('\n');
-   fflush(stdout);
+   union REGS reg;
+   
+   reg.w.ax = 0x0601;
+   reg.h.bh = attrib;
+   reg.w.cx = 0;
+   reg.h.dh = y_pos;
+   reg.h.dl = screen_w - 1;
+   int386(0x10, &reg, &reg);
 }
 
 
