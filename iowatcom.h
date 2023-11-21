@@ -32,7 +32,7 @@
 #define _USE_LFN        0
 
 
-#define SCRN_ADDR(x,y)  (video_base+((x)*2)+((y)*160))
+#define SCRN_ADDR(x,y)  (video_base+((x)*2)+((y)*screen_w*2))
 
 
 #define TL_CHAR         0xDA
