@@ -34,7 +34,7 @@ LDFLAGS = user32.lib gdi32.lib shell32.lib winmm.lib advapi32.lib
 else
 ifeq ($(TARGET),curses)
 CFLAGS = -DTARGET_CURSES
-ifdef DJGPP
+ifdef DJDIR
 LDFLAGS = -lcurso
 else
 LDFLAGS = -lncurses
@@ -107,7 +107,7 @@ ifeq ($(TARGET),win)
 MXE = .exe
 EXE = .exe
 else
-ifdef ($(TARGET),djgpp)
+ifeq ($(TARGET),djgpp)
 MXE = 
 EXE = .exe
 else
@@ -188,7 +188,7 @@ ifeq ($(TARGET),win)
 	zip -9 fed/fed.zip fed/fed.mft
 	cd fed
 else
-ifdef DJGPP
+ifeq ($(TARGET),djgpp)
 	cp $(DJDIR)/bin/cwsdpmi.* .
 	cd ..
 	rm -f fed/fed.zip fed/fed.mft
