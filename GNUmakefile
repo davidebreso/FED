@@ -10,7 +10,7 @@ else
 ifdef MSVCDIR
 TARGET = win
 else
-ifdef DJGPP
+ifdef DJDIR
 TARGET = djgpp
 else
 ifdef WATCOM
@@ -25,28 +25,28 @@ endif
 ################ set the platform defines ################
 
 ifeq ($(TARGET),djgpp)
-fed$(EXE): CFLAGS += -DTARGET_DJGPP
-fed$(EXE): LDFLAGS +=
+CFLAGS = -DTARGET_DJGPP
+LDFLAGS = 
 else
 ifeq ($(TARGET),win)
-fed$(EXE): CFLAGS += -DTARGET_WIN
-fed$(EXE): LDFLAGS += user32.lib gdi32.lib shell32.lib winmm.lib advapi32.lib
+CFLAGS = -DTARGET_WIN
+LDFLAGS = user32.lib gdi32.lib shell32.lib winmm.lib advapi32.lib
 else
 ifeq ($(TARGET),curses)
-fed$(EXE): CFLAGS += -DTARGET_CURSES
+CFLAGS = -DTARGET_CURSES
 ifdef DJGPP
-fed$(EXE): LDFLAGS += -lcurso
+LDFLAGS = -lcurso
 else
-fed$(EXE): LDFLAGS += -lncurses
+LDFLAGS = -lncurses
 endif
 else
 ifeq ($(TARGET),alleg)
-fed$(EXE): CFLAGS += -DTARGET_ALLEG
-fed$(EXE): LDFLAGS += -lalleg
+CFLAGS = -DTARGET_ALLEG
+LDFLAGS = -lalleg
 else
 ifeq ($(TARGET),watcom)
-fed$(EXE): CFLAGS += -dTARGET_WATCOM
-fed$(EXE): LDFLAGS +=
+CFLAGS = -dTARGET_WATCOM
+LDFLAGS =
 else
 badtarget:
 	@echo Unknown compile target $(TARGET)! (expecting djgpp, curses, msvc, or alleg)
@@ -64,8 +64,8 @@ CC = cl
 EXEO = -Fe
 OBJO = -Fo
 
-CFLAGS = -nologo -W3 -WX -Gd -Ox -GB -MT
-LDFLAGS = -nologo
+CFLAGS += -nologo -W3 -WX -Gd -Ox -GB -MT
+LDFLAGS += -nologo
 
 ifdef DEBUGMODE
 CFLAGS += -Zi
@@ -79,21 +79,22 @@ CC = wcl386
 EXEO = -fe=
 OBJO = -fo=
 
-CFLAGS = -s -bcl=dos4g -dTARGET_WATCOM
-LDFLAGS = -s -bcl=dos4g
+CFLAGS += -s -bcl=dos4g
+LDFLAGS += -s -bcl=dos4g
 
 else
 
 CC = gcc
+
 EXEO = -o # trailing space
 OBJO = -o # trailing space
 
 ifdef DEBUGMODE
-CFLAGS = -g
-LDFLAGS =
+CFLAGS += -g
+LDFLAGS +=
 else
-CFLAGS = -Wall -O3 -fomit-frame-pointer
-LDFLAGS = -s
+CFLAGS += -Wall -O3 -fomit-frame-pointer
+LDFLAGS += -s
 endif
 
 endif
@@ -106,8 +107,8 @@ ifeq ($(TARGET),win)
 MXE = .exe
 EXE = .exe
 else
-ifdef DJGPP
-MXE = .exe
+ifdef ($(TARGET),djgpp)
+MXE = 
 EXE = .exe
 else
 ifeq ($(TARGET),watcom)
@@ -148,9 +149,9 @@ OBJS := $(SRCS:.c=.$(OBJ))
 
 ################ the actual build rules ################
 
-default: wccfed$(EXE)
+default: fed$(EXE)
 
-wccfed$(EXE) : $(OBJS)
+fed$(EXE) : $(OBJS)
 	$(CC) $(LDFLAGS) $(OBJS) $(EXEO)$@
 
 help.c: help.txt makehelp$(MXE)
@@ -160,7 +161,11 @@ makehelp$(MXE): makehelp.c
 ifeq ($(TARGET),watcom)
 	gcc -Wall -O3 -fomit-frame-pointer -g -o makehelp makehelp.c
 else
+ifeq ($(TARGET),djgpp)
+	clang $(CFLAGS) -g $(LDFLAGS) $(EXEO)makehelp$(MXE) makehelp.c
+else
 	$(CC) $(CFLAGS) -g $(LDFLAGS) $(EXEO)makehelp$(MXE) makehelp.c
+endif
 endif
 
 %.$(OBJ) : %.c fed.h io.h io$(TARGET).h

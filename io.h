@@ -83,7 +83,6 @@ void pch(unsigned char c);
 void mywrite(char *s);
 void del_to_eol();
 void cr_scroll();
-void screen_block(char *s, int s_g, char *d, int d_g, int w, int h);
 char *save_screen(int x, int y, int w, int h);
 void restore_screen(int x, int y, int w, int h, char *buf);
 void clear_keybuf();

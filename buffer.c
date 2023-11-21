@@ -821,7 +821,7 @@ void run_tool(char *cmd, char *desc)
    }
 
  #if (defined DJGPP) || (defined TARGET_WIN)
-   disk = _dos_getdisk();
+   disk = getdisk();
  #elif (defined TARGET_WATCOM)
    _dos_getdrive(&disk);
  #endif

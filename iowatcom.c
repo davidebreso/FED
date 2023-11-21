@@ -508,7 +508,7 @@ void pch(unsigned char c)
 
 
 
-void mywrite(unsigned char *s)
+void mywrite(char *s)
 {
    uint16_t *p;
 
