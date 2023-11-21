@@ -20,6 +20,11 @@
 #include <sys/stat.h>
 #endif
 
+#ifdef TARGET_WATCOM
+#include <dos.h>
+#endif
+
+
 #include "fed.h"
 
 
@@ -656,6 +661,8 @@ void run_tool(char *cmd, char *desc)
 
  #if (defined DJGPP) || (defined TARGET_WIN)
    int disk;
+ #elif (defined TARGET_WATCOM)
+   unsigned disk, total;
  #endif
 
    while ((*cmd) && (*cmd != '|'))        /* skip command menu description */
@@ -814,7 +821,9 @@ void run_tool(char *cmd, char *desc)
    }
 
  #if (defined DJGPP) || (defined TARGET_WIN)
-   disk = getdisk();
+   disk = _dos_getdisk();
+ #elif (defined TARGET_WATCOM)
+   _dos_getdrive(&disk);
  #endif
 
    getcwd(path, 256);
@@ -831,6 +840,8 @@ void run_tool(char *cmd, char *desc)
 
  #if (defined DJGPP) || (defined TARGET_WIN)
    setdisk(disk);
+ #else
+   _dos_setdrive(disk, &total);
  #endif
 
    if (file_size(ERROR_FILE) > 0) {

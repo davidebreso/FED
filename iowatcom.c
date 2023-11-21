@@ -31,9 +31,9 @@ int x_pos = 0, y_pos = 0;
 int attrib = 7;
 int norm_attrib = 7;             /* light gray on black */
 int saved_lines = 0;
-short saved_vmode = 0;
-short fed_vmode = 0;
-int video_base = 0xb8000;
+char saved_vmode = 0;
+char fed_vmode = 0;
+int video_base = 0xb0000;
 
 int mouse_state;
 int m_x = -1;
@@ -282,7 +282,7 @@ void term_init(int screenheight)
    
    if (saved_lines <= 0) {
       /* Read the video mode from the BIOS area */
-      saved_vmode = *(short *)( 0x449 );
+      saved_vmode = *(char *)( 0x449 );
    
       if (saved_vmode == 7) {
          /* Monochrome video card */
@@ -331,7 +331,7 @@ void term_exit()                     /* close down the screen */
 void term_reinit(int wait)             /* fixup after running other progs */
 {
    /* Read the video mode from the BIOS area */
-   short vmode = *(short *)( 0x449 );
+   short vmode = *(char *)( 0x449 );
    
    /*  gppconio_init();     Watcom conio and graph do not have init/reset functions */
 
@@ -420,12 +420,20 @@ void cr_scroll()
 {
    union REGS reg;
    
-   reg.w.ax = 0x0601;
-   reg.h.bh = attrib;
-   reg.w.cx = 0;
-   reg.h.dh = y_pos;
-   reg.h.dl = screen_w - 1;
-   int386(0x10, &reg, &reg);
+   if (y_pos < screen_h - 1) {
+      y_pos++;
+   } else {
+      reg.w.ax = 0x0601;
+      reg.h.bh = attrib;
+      reg.w.cx = 0;
+      reg.h.dh = screen_h - 1;
+      reg.h.dl = screen_w - 1;
+      int386(0x10, &reg, &reg);
+   }
+   
+   x_pos = 0;
+   
+   goto2(x_pos, y_pos);
 }
 
 
