@@ -252,10 +252,13 @@ void goto2(int x, int y)
 {
    union REGS reg;
    
+   x_pos = x;
+   y_pos = y;
+   
    reg.w.ax = 0x0200;
    reg.w.bx = 0;
-   reg.h.dh = y;
-   reg.h.dl = x;
+   reg.h.dh = y_pos;
+   reg.h.dl = x_pos;
    int386(0x10, &reg, &reg);
 }
 
@@ -271,7 +274,6 @@ void cls()
    }
 
    goto2(0, 0);
-   x_pos = y_pos = 0;
 }
 
 
@@ -763,39 +765,37 @@ int do_for_each_directory(char *name, int (*call_back)(char *, int), int param)
 
 
 
-#define MASK_LINEAR(addr)     (addr & 0x000FFFFF)
-#define RM_OFFSET(addr)       (addr & 0xF)
-#define RM_SEGMENT(addr)      ((addr >> 4) & 0xFFFF)
-
-
-
 void windows_init()
 {
-/*********
    union REGS r;
    struct SREGS sr;
+   unsigned seg;
 
    r.w.ax = 0x1600; 
    int386(0x2F, &r, &r);
 
    if ((r.h.al == 0) || (r.h.al == 1) || (r.h.al == 0x80) || (r.h.al == 0xFF)) {
       windows_version = 0;
-      clipboard_version = 0;
-      return;
+   } 
+   else {
+      windows_version = ((int)r.h.al << 8) | (int)r.h.ah;
+      
+      if (_dos_allocmem((sizeof(orig_title)+15)>>4, &seg) == 0) {
+         r.w.ax = 0x168E;
+         r.w.dx = 2;
+         r.w.cx = sizeof(orig_title)-1;
+         segread(&sr);
+         sr.es = seg;
+         r.w.di = 0;
+
+         int386(0x2F, &r, &r);
+
+         memcpy(orig_title, (char *)(seg*16), sizeof(orig_title));
+         
+         _dos_freemem(seg);
+      }
    }
-
-   windows_version = ((int)r.h.al << 8) | (int)r.h.ah;
-
-   r.w.ax = 0x168E;
-   r.w.dx = 2;
-   r.w.cx = sizeof(orig_title)-1;
-   sr.es = RM_SEGMENT(__tb);
-   r.w.di = RM_OFFSET(__tb);
-
-   int386(0x2F, &r, &r);
-
-   dosmemget(MASK_LINEAR(__tb), sizeof(orig_title), orig_title);
-
+   
    r.w.ax = 0x1700;
    int386(0x2F, &r, &r);
 
@@ -803,20 +803,25 @@ void windows_init()
       clipboard_version = 0;
    else
       clipboard_version = r.w.ax;
-***********/
 }
 
 
 
 int set_window_title(char *title)
 {
-/*********
-   char buf[256];
+   char *buf;
    union REGS r;
+   struct SREGS sr;
+   unsigned seg;
 
    if (!windows_version)
       return FALSE;
 
+   if (_dos_allocmem((256+15)>>4, &seg) != 0)
+      return FALSE;
+      
+   buf = (char *)(seg*16);
+      
    if (orig_title[0]) {
       strcpy(buf, orig_title);
       strcat(buf, " - ");
@@ -827,15 +832,14 @@ int set_window_title(char *title)
 
    buf[79] = 0;
 
-   dosmemput(buf, strlen(buf)+1, MASK_LINEAR(__tb));
-
    r.w.ax = 0x168E;
    r.w.dx = 0;
-   r.w.es = RM_SEGMENT(__tb);
-   r.w.di = RM_OFFSET(__tb);
+   segread(&sr);
+   sr.es = seg;
+   r.w.di = 0;
 
    int386(0x2F, &r, &r);
-*********/
+
    return TRUE;
 }
 
@@ -843,17 +847,13 @@ int set_window_title(char *title)
 
 int got_clipboard()
 {
-/*********
    return (clipboard_version != 0);
-*********/
-    return TRUE;
 }
 
 
 
 int got_clipboard_data()
 {
-/*********
    union REGS r;
    int size;
 
@@ -876,22 +876,20 @@ int got_clipboard_data()
    int386(0x2F, &r, &r);
 
    return (size > 0);
-*********/
-    return FALSE;
 }
 
 
 
 int set_clipboard_data(char *data, int size)
 {
-/*********
    union REGS r;
-   int seg, sel;
+   struct SREGS sr;
+   unsigned seg;
    int ret = TRUE;
 
    if (!clipboard_version)
       return FALSE;
-
+   
    r.w.ax = 0x1701;
    int386(0x2F, &r, &r);
 
@@ -901,48 +899,45 @@ int set_clipboard_data(char *data, int size)
    r.w.ax = 0x1702;
    int386(0x2F, &r, &r);
 
-   seg = __dpmi_allocate_dos_memory((size+15)>>4, &sel);
-
-   if (seg < 0) {
+   if (_dos_allocmem((size+15)>>4, &seg) != 0) {
       ret = FALSE;
    }
    else {
-      dosmemput(data, size, seg*16);
+      memcpy((char *)(seg*16), data, size);
 
       r.w.ax = 0x1703;
       r.w.dx = 1;
-      r.w.es = seg;
+      segread(&sr);
+      sr.es = seg;
       r.w.bx = 0;
       r.w.si = size>>16;
       r.w.cx = size&0xFFFF;
 
-      int386(0x2F, &r, &r);
+      int386x(0x2F, &r, &r, &sr);
 
       if (!r.w.ax)
-	 ret = FALSE;
+         ret = FALSE;
 
-      __dpmi_free_dos_memory(sel);
+      _dos_freemem(seg);
    }
 
    r.w.ax = 0x1708;
    int386(0x2F, &r, &r);
 
    return ret;
-*********/
-    return FALSE;
 }
 
 
 
 char *get_clipboard_data(int *size)
 {
-/*********
    union REGS r;
-   int seg, sel;
+   struct SREGS sr;
+   unsigned seg;
    void *ret = NULL;
 
    if (!clipboard_version)
-      return FALSE;
+      return NULL;
 
    r.w.ax = 0x1701;
    int386(0x2F, &r, &r);
@@ -957,24 +952,23 @@ char *get_clipboard_data(int *size)
    *size = (r.w.dx<<16) | r.w.ax;
 
    if (*size > 0) {
-      seg = __dpmi_allocate_dos_memory((*size+15)>>4, &sel);
+      if (_dos_allocmem((*size+15)>>4, &seg) == 0) {
+         r.w.ax = 0x1705;
+         r.w.dx = 1;
+         segread(&sr);
+         sr.es = seg;
+         r.w.bx = 0;
 
-      if (seg > 0) {
-	 r.w.ax = 0x1705;
-	 r.w.dx = 1;
-	 r.w.es = seg;
-	 r.w.bx = 0;
+         int386x(0x2F, &r, &r, &sr);
 
-	 int386(0x2F, &r, &r);
+         if (r.w.ax) {
+            ret = malloc(*size);
 
-	 if (r.w.ax) {
-	    ret = malloc(*size);
+         if (ret)
+             memcpy(ret, (char*)(seg*16), *size);
+         }
 
-	    if (ret)
-	       dosmemget(seg*16, *size, ret);
-	 }
-
-	 __dpmi_free_dos_memory(sel);
+         _dos_freemem(seg);
       }
    }
 
@@ -982,8 +976,6 @@ char *get_clipboard_data(int *size)
    int386(0x2F, &r, &r);
 
    return ret;
-*********/
-    return NULL;
 }
 
 

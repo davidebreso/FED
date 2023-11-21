@@ -79,8 +79,8 @@ CC = wcl386
 EXEO = -fe=
 OBJO = -fo=
 
-CFLAGS = -bcl=pmodew -dTARGET_WATCOM
-LDFLAGS = -bcl=pmodew
+CFLAGS = -s -bcl=dos4g -dTARGET_WATCOM
+LDFLAGS = -s -bcl=dos4g
 
 else
 
